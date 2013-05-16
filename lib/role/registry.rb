@@ -4,7 +4,7 @@ class Acl::Role::Registry
   def add(role, parents = nil)
     role_id = role.get_role_id()
 
-    if has(role_id)
+    if has?(role_id)
       raise Acl::Exception::InvalidArgumentException.new("Role id #{role_id} already exists in the registry")
     end
 
@@ -46,14 +46,14 @@ class Acl::Role::Registry
       role_id = role.to_s
     end
 
-    if !has(role)
+    if !has?(role)
       raise Acl::Exception::InvalidArgumentException.new("Role #{role_id} not found.")
     end
 
     return @roles[role_id][:instance]
   end
 
-  def has(role)
+  def has?(role)
     role_id = get(role).get_role_id()
 
     return roles[role_id][:parents]

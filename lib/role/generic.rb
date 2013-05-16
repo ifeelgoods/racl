@@ -1,4 +1,4 @@
-class Acl::Role::Generic
+class Acl::Role::Generic < Acl::Role::Interface
   def initialize(role_id)
     @role_id = role_id.to_s
   end
