@@ -460,8 +460,6 @@ class Acl < Acl::Interface
   end
 
   def get_rules(resource = nil, role = nil, create = false)
-    visitor = nil
-
     if (resource == nil)
       visitor = @rules[:all_resources]
     else
