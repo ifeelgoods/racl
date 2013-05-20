@@ -203,14 +203,14 @@ class Racl::Acl
           resources.prepend(nil)
         end
       else
-        resources = [resources]
+        resources = { resources => nil }
       end
     elsif resources.length == 0
-      resources = [nil]
+      resources = { nil => nil }
     end
     resourcesTemp = resources
-    resources = []
-    resourcesTemp.each { |resource|
+    resources = {}
+    resourcesTemp.each { |resource, useless|
       if resource != nil
         resource_obj = get_resource(resource)
         resource_id = resource_obj.get_resource_id()
@@ -218,7 +218,7 @@ class Racl::Acl
         resources = resources.merge(children)
         resources[resource_id] = resource_obj
       else
-        resources.push(nil)
+        resources.merge!(nil => nil)
       end
     }
 
@@ -230,7 +230,7 @@ class Racl::Acl
 
     case(operation)
       when @@OP_ADD
-        resources.each { |resource|
+        resources.each { |resource_id, resource|
           roles.each { |role|
             rules = get_rules(resource, role, true)
             if privileges.length == 0
@@ -262,7 +262,7 @@ class Racl::Acl
   end
 
   def get_child_resources(resource)
-    values = []
+    values = {}
     id = resource.get_resource_id()
     
     children = @resources[id][:children]
@@ -376,7 +376,7 @@ class Racl::Acl
     end
 
     dfs[:visited].merge!( { role.get_role_id() => true } )
-    get_role_registry().get_parents(role).each { |role_parent|
+    get_role_registry().get_parents(role).each { |key, role_parent|
       dfs[:stack].push(role_parent)
     }
 
@@ -477,7 +477,7 @@ class Racl::Acl
         if !create
           return nil
         end
-        @rule[:by_resource_id][resource_id]
+        @rules[:by_resource_id] = { resource_id => {} }
       end
       visitor = @rules[:by_resource_id][resource_id]
     end
@@ -487,6 +487,7 @@ class Racl::Acl
         if !create
           return nil
         end
+        visitor[:all_roles] = {} if visitor[:all_roles].nil?
         visitor[:all_roles].merge!({
           :by_privilege_id => {}
         })
@@ -495,6 +496,7 @@ class Racl::Acl
     end
 
     role_id = role.get_role_id()
+    visitor[:by_role_id] = {} if visitor[:by_role_id].nil?
     if visitor[:by_role_id][role_id].nil?
       if !create
         return nil

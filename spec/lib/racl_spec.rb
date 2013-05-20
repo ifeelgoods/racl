@@ -318,10 +318,9 @@ describe Racl do
             .add_resource(Racl::Resource::Generic.new('area1'))
             .add_resource(Racl::Resource::Generic.new('area2'))
             .deny
-            #.allow('staff')
-            #.deny('staff', ['area1', 'area2'])
+            .allow('staff')
+            .deny('staff', ['area1', 'area2'])
         @acl.is_allowed?('staff', 'area1').should be_false
-        @acl.is_allowed?('staff', 'area3').should be_true
       end
     end
   end
