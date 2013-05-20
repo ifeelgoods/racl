@@ -248,13 +248,80 @@ describe Racl do
         @acl.is_allowed?(role_guest).should be_false
       end
 
-      it "should ensure that by default, Acl denies access to a privilege on anything for a particular Role" do
+      it "should ensure that ACL-wide rules (all Resources and privileges) work properly for a particular Role" do
         role_guest = Racl::Role::Generic.new('guest')
         @acl.add_role(role_guest)
             .allow(role_guest)
-        #@acl.is_allowed?(role_guest).should be_true
-        #@acl.deny(role_guest)
-        #@acl.is_allowed?(role_guest).should be_false
+        @acl.is_allowed?(role_guest).should be_true
+        @acl.deny(role_guest)
+        @acl.is_allowed?(role_guest).should be_false
+      end
+
+      it "should ensure that by default, Acl denies access to a privilege on anything for a particular Role" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+        @acl.is_allowed?(role_guest, nil, :some_privileges).should be_false
+      end
+
+      it "should ensure that a privilege allowed for a particular Role upon all Resources work properly" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+            .allow(role_guest, nil, :some_privilege)
+        @acl.is_allowed?(role_guest, nil, :some_privilege).should be_true
+      end
+
+      it "should ensure that a privilege denied for a particular Role upon all Resources work properly" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+            .allow(role_guest)
+            .deny(role_guest, nil, :some_privilege)
+        @acl.is_allowed?(role_guest, nil, :some_privilege).should be_false
+      end
+
+      it "should ensure that multiple privileges work properly for a particular Role" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+            .allow(role_guest, nil, [:p1, :p2, :p3])
+        @acl.is_allowed?(role_guest, nil, :p1).should be_true
+        @acl.is_allowed?(role_guest, nil, :p2).should be_true
+        @acl.is_allowed?(role_guest, nil, :p3).should be_true
+        @acl.is_allowed?(role_guest, nil, :p4).should be_false
+        @acl.deny(role_guest, nil, :p1)
+        @acl.is_allowed?(role_guest, nil, :p1).should be_false
+        @acl.deny(role_guest, nil, [:p2, :p3])
+        @acl.is_allowed?(role_guest, nil, :p2).should be_false
+        @acl.is_allowed?(role_guest, nil, :p3).should be_false
+      end
+
+      it "should ensure that assertions on privileges work properly for a particular Role" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+            .allow(role_guest, nil, :some_privilege, Racl::Assertion::Generic.new(true))
+        @acl.is_allowed?(role_guest, nil, :some_privilege).should be_true
+        @acl.allow(role_guest, nil, :some_privilege, Racl::Assertion::Generic.new(false))
+        @acl.is_allowed?(role_guest, nil, :some_privilege).should be_false
+      end
+
+      it "should ensure that removing the default rule results in default deny rule"
+
+      it "should ensure that removing the default deny rule results in assertion method being removed"
+
+      it "should ensure that removing the default allow rule results in default deny rule"
+
+      it "should ensure that removing non-existent default allow rule does nothing"
+
+      it "should ensure that removing non-existent default deny rule does nothing"
+
+      it "should ensure that for a particular role, a deny rule on a specific Resource is honored before an allow rule on the entire ACL" do
+        @acl.add_role(Racl::Role::Generic.new('guest'))
+            .add_role(Racl::Role::Generic.new('staff'), 'guest')
+            .add_resource(Racl::Resource::Generic.new('area1'))
+            .add_resource(Racl::Resource::Generic.new('area2'))
+            .deny
+            #.allow('staff')
+            #.deny('staff', ['area1', 'area2'])
+        @acl.is_allowed?('staff', 'area1').should be_false
+        @acl.is_allowed?('staff', 'area3').should be_true
       end
     end
   end

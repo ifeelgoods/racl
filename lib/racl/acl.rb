@@ -182,7 +182,7 @@ class Racl::Acl
     if !roles.is_a? Array
       roles = [roles]
     elsif roles.length == 0
-      roles = []
+      roles = [nil]
     end
 
     roles_temp = roles
@@ -261,7 +261,7 @@ class Racl::Acl
     return self
   end
 
-  def getChildResources(resource)
+  def get_child_resources(resource)
     values = []
     id = resource.get_resource_id()
     
@@ -319,7 +319,7 @@ class Racl::Acl
     else
       @is_allowed_privilege = privilege
       begin
-        if role != nil && (result = role_dfs_all_privileges(role, resource, privilege)) != nil
+        if role != nil && (result = role_dfs_one_privilege(role, resource, privilege)) != nil
           return result
         end
 
@@ -343,7 +343,6 @@ class Racl::Acl
 
   def role_dfs_all_privileges(role, resource = nil)
     dfs = { visited: {}, stack: [] }
-
 
     if (result = role_dfs_visit_all_privileges(role, resource, dfs)) != nil
       return result
@@ -390,7 +389,7 @@ class Racl::Acl
     end
 
     dfs = {
-      visited: [],
+      visited: {},
       stack: []
     }
 
@@ -421,10 +420,10 @@ class Racl::Acl
     if (rule_type_one_privilege = get_rule_type(resource, role, privilege))
       return @@TYPE_ALLOW == rule_type_one_privilege
     elsif (rule_type_all_privilege = get_rule_type(resource, role, nil)) != nil
-      return @@TYPE_AALOW == rule_type_all_privilege
+      return @@TYPE_ALLOW == rule_type_all_privilege
     end
 
-    dfs[:visited][role.get_role_id] = true
+    dfs[:visited].merge!( { role.get_role_id => true })
     get_role_registry().get_parents(role).each { |role_parent|
       dfs[:stack].push(role_parent)
     }
@@ -436,7 +435,6 @@ class Racl::Acl
     if (rules = get_rules(resource, role)) == nil
       return nil
     end
-
     if privilege == nil
       if !rules[:all_privileges].nil?
         rule = rules[:all_privileges]
