@@ -183,5 +183,79 @@ describe Racl do
         expect { @acl.add_resource(@resource_area).add_resource(resource_area2) }.to raise_error Racl::Exception::InvalidArgumentException
       end
     end
+
+    context "Acl" do
+      it "should raise an exception when a non-existent Role and Resource parameters are specified to #is_allowed?" do
+        expect { @acl.is_allowed?('nonexistent') }.to raise_error Racl::Exception::InvalidArgumentException
+        expect { @acl.is_allowed?(nil, 'nonexistent') }.to raise_error Racl::Exception::InvalidArgumentException
+      end
+ 
+      it "should deny access to everything by default" do
+        @acl.is_allowed?().should be_false
+      end
+
+      it "should ensure that the default rule obeys its assertion" do
+        @acl.deny(nil, nil, nil, Racl::Assertion::Generic.new(false))
+        @acl.is_allowed?.should be_true
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_true
+      end
+
+      it "should ensure that ACL-wide rules (all Roles, Resources, and privileges) work properly" do
+        @acl.allow
+        @acl.is_allowed?.should be_true
+        @acl.deny
+        @acl.is_allowed?.should be_false
+      end
+
+      it "should by default deny access to a privilege on anything by all" do
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_false
+      end
+
+      it "should ensure that a privilege allowed for all Roles upon all Resources work properly" do
+        @acl.allow(nil, nil, :some_privilege)
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_true
+      end
+
+      it "should ensure that a privilege denied for all Roles upon all Resources work properly" do
+        @acl.allow
+        @acl.deny(nil, nil, :some_privilege)
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_false
+      end
+
+      it "should ensure that multiple privileges work properly" do
+        @acl.allow(nil, nil, [:p1, :p2, :p3])
+        @acl.is_allowed?(nil, nil, :p1).should be_true
+        @acl.is_allowed?(nil, nil, :p2).should be_true
+        @acl.is_allowed?(nil, nil, :p3).should be_true
+        @acl.is_allowed?(nil, nil, :p4).should be_false
+        @acl.deny(nil, nil, :p1)
+        @acl.is_allowed?(nil, nil, :p1).should be_false
+        @acl.deny(nil, nil, [:p2, :p3])
+        @acl.is_allowed?(nil, nil, :p2).should be_false
+        @acl.is_allowed?(nil, nil, :p3).should be_false
+      end
+
+      it "should ensure that assertions on privileges work properly" do
+        @acl.allow(nil, nil, :some_privilege, Racl::Assertion::Generic.new(true))
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_true
+        @acl.allow(nil, nil, :some_privilege, Racl::Assertion::Generic.new(false))
+        @acl.is_allowed?(nil, nil, :some_privilege).should be_false
+      end
+
+      it "should ensure that by default, Acl denies access to everything for a particular role" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+        @acl.is_allowed?(role_guest).should be_false
+      end
+
+      it "should ensure that by default, Acl denies access to a privilege on anything for a particular Role" do
+        role_guest = Racl::Role::Generic.new('guest')
+        @acl.add_role(role_guest)
+            .allow(role_guest)
+        #@acl.is_allowed?(role_guest).should be_true
+        #@acl.deny(role_guest)
+        #@acl.is_allowed?(role_guest).should be_false
+      end
+    end
   end
 end

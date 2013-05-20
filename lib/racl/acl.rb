@@ -157,6 +157,14 @@ class Racl::Acl
     # A stub. For later implementation when the need arise.
   end
 
+  def allow(roles = nil, resources = nil, privileges = nil, assert = nil)
+    return set_rule(@@OP_ADD, @@TYPE_ALLOW, roles, resources, privileges, assert)
+  end
+
+  def deny(roles = nil, resources = nil, privileges = nil, assert = nil)
+    return set_rule(@@OP_ADD, @@TYPE_DENY, roles, resources, privileges, assert)
+  end
+
   def remove_allow
     # A stub. For later implementation when the need arise.
   end
@@ -172,7 +180,9 @@ class Racl::Acl
     end
 
     if !roles.is_a? Array
-      roles = [nil]
+      roles = [roles]
+    elsif roles.length == 0
+      roles = []
     end
 
     roles_temp = roles
@@ -180,9 +190,9 @@ class Racl::Acl
 
     roles_temp.each { |role|
       if role != nil
-        roles.append(get_role_registry().get(role))
+        roles.push(get_role_registry().get(role))
       else
-        roles.append(nil)
+        roles.push(nil)
       end
     }
 
@@ -208,7 +218,7 @@ class Racl::Acl
         resources = resources.merge(children)
         resources[resource_id] = resource_obj
       else
-        resources.append = nil
+        resources.push(nil)
       end
     }
 
@@ -222,17 +232,26 @@ class Racl::Acl
       when @@OP_ADD
         resources.each { |resource|
           roles.each { |role|
-            rule = get_rules(resource, role, true) 
+            rules = get_rules(resource, role, true)
+            puts "\r\n***\r\nrules = #{rules}\r\nresource = #{resource}\r\nrole = #{role}\r\n***\r\n"
             if privileges.length == 0
-              rules[:all_privileges][:type] = type
-              rules[:all_privileges][:assert] = assert
+              puts "\r\nIF\r\n"
+              rules[:all_privileges].merge!({
+                  type: type,
+                  assert: assert
+              })
               if rules[:by_privilege_id].nil?
-                rules[:by_privilege_id] = []
+                rules[:by_privilege_id] = {}
               end
             else
+              puts "\r\nELSE\r\n"
               privileges.each { |privilege|
-                rules[:by_privilege_id][privilege][:type] = type
-                rules[:by_privilege_id][privilege][:assert] = assert
+                rules[:by_privilege_id].merge!({ 
+                  privilege => { 
+                    type: type, 
+                    assert: assert
+                  }
+                })
               }
             end
           }
@@ -261,12 +280,12 @@ class Racl::Acl
     return values
   end
 
-  def is_allowed?(role = nil, resources = nil, privileges = nil)
+  def is_allowed?(role = nil, resource = nil, privilege = nil)
     @is_allowed_role = nil
     @is_allowed_resource = nil
     @is_allowed_privilege = nil
 
-    if role == nil
+    if role != nil
       @is_allowed_role = role
       role = get_role_registry().get(role)
       if !@is_allowed_role.is_a? Racl::Role
@@ -274,7 +293,7 @@ class Racl::Acl
       end
     end
 
-    if resource == nil
+    if resource != nil
       @is_allowed_resource = resource
       resource = get_resource(resource)
       if !@is_allowed_resource.is_a? Racl::Resource
@@ -284,7 +303,7 @@ class Racl::Acl
 
     if privilege == nil
       begin
-        if role != nil && (result = role_dfs_all_privileges(role, resource, privilege)) != nil
+        if role != nil && (result = role_dfs_all_privileges(role, resource)) != nil
           return result
         end
 
@@ -294,7 +313,7 @@ class Racl::Acl
               return false
             end
           }
-          if (rule_type_all_privileges == get_rule_type(resource, nil, nil)) != nil
+          if (rule_type_all_privileges = get_rule_type(resource, nil, nil)) != nil
             return @@TYPE_ALLOW == rule_type_all_privileges
           end
         end
@@ -310,7 +329,7 @@ class Racl::Acl
 
         if (rule_type = get_rule_type(resource, nil, privilege)) != nil
           return @@TYPE_ALLOW == rule_type
-        elsif (rule_type_all_privileges == get_rule_type(resource, nil, nil)) != nil
+        elsif (rule_type_all_privileges = get_rule_type(resource, nil, nil)) != nil
           result = @@TYPE_ALLOW == rule_type_all_privileges
           if result || nil == resource
             return result
@@ -327,14 +346,15 @@ class Racl::Acl
   end
 
   def role_dfs_all_privileges(role, resource = nil)
-    dfs = { visited: [], stack: [] }
+    dfs = { visited: {}, stack: [] }
+
 
     if (result = role_dfs_visit_all_privileges(role, resource, dfs)) != nil
       return result
     end
 
-    while (role = @dfs[:stack].pop()) != nil
-      if @dfs[:visited][role.get_role_id()].nil?
+    while (role = dfs[:stack].pop()) != nil
+      if dfs[:visited][role.get_role_id()].nil?
         if (result = role_dfs_visit_all_privileges(role, resource, dfs)) != nil
           return result
         end
@@ -360,9 +380,9 @@ class Racl::Acl
       end
     end
 
-    dfs[:visited][role.get_role_id()] = true
+    dfs[:visited].merge!( { role.get_role_id() => true } )
     get_role_registry().get_parents(role).each { |role_parent|
-      dfs[:stack].append = role_parent
+      dfs[:stack].push(role_parent)
     }
 
     return nil
@@ -410,7 +430,7 @@ class Racl::Acl
 
     dfs[:visited][role.get_role_id] = true
     get_role_registry().get_parents(role).each { |role_parent|
-      dfs[:stack].append = role_parent
+      dfs[:stack].push(role_parent)
     }
 
     return nil
@@ -458,7 +478,6 @@ class Racl::Acl
     if (resource == nil)
       visitor = @rules[:all_resources]
     else
-      visitor = @rules[:all_resources]
       resource_id = resource.get_resource_id()
       if (@rules[:by_resource_id][resource_id].nil?)
         if !create
@@ -474,16 +493,26 @@ class Racl::Acl
         if !create
           return nil
         end
+        visitor[:all_roles].merge!({
+          :by_privilege_id => {}
+        })
       end
+      return visitor[:all_roles]
     end
+
     role_id = role.get_role_id()
-    if visitor[:by_role_id][role_id]
+    if visitor[:by_role_id][role_id].nil?
       if !create
         return nil
       end
-      visitor[:by_role_id][role_id][:by_privilege_id] = []
+      puts "\r\n$$$\r\n#{visitor[:by_role_id].class}\r\n"
+      visitor[:by_role_id].merge!({
+        role_id => {
+          :by_privilege_id => {}
+        }
+      })
     end
-
+    puts "\r\n%%%\r\n#{visitor}\r\n"
     return visitor[:by_role_id][role_id]
   end
 
