@@ -233,18 +233,14 @@ class Racl::Acl
         resources.each { |resource|
           roles.each { |role|
             rules = get_rules(resource, role, true)
-            puts "\r\n***\r\nrules = #{rules}\r\nresource = #{resource}\r\nrole = #{role}\r\n***\r\n"
             if privileges.length == 0
-              puts "\r\nIF\r\n"
+              rules[:all_privileges] = {} if rules[:all_privileges].nil?
               rules[:all_privileges].merge!({
                   type: type,
                   assert: assert
               })
-              if rules[:by_privilege_id].nil?
-                rules[:by_privilege_id] = {}
-              end
+              rules[:by_privilege_id] = {} if rules[:by_privilege_id].nil?
             else
-              puts "\r\nELSE\r\n"
               privileges.each { |privilege|
                 rules[:by_privilege_id].merge!({ 
                   privilege => { 
@@ -505,14 +501,12 @@ class Racl::Acl
       if !create
         return nil
       end
-      puts "\r\n$$$\r\n#{visitor[:by_role_id].class}\r\n"
       visitor[:by_role_id].merge!({
         role_id => {
           :by_privilege_id => {}
         }
       })
     end
-    puts "\r\n%%%\r\n#{visitor}\r\n"
     return visitor[:by_role_id][role_id]
   end
 
