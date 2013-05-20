@@ -1,0 +1,2 @@
+class Racl::Role
+end
