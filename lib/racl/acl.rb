@@ -3,7 +3,7 @@ class Racl::Acl
   @@TYPE_DENY = :type_deny
   @@OP_ADD = :op_add
   @@OP_REMOVE = :op_remove
-
+  attr_reader :rules
   def initialize
     @role_registry = nil
     @resources = {}
@@ -266,7 +266,7 @@ class Racl::Acl
     id = resource.get_resource_id()
     
     children = @resources[id][:children]
-    children.each { |child|
+    children.each { |key, child|
       child_return = get_child_resources(child)
       child_return[child.get_resource_id()] = child
 
@@ -424,7 +424,7 @@ class Racl::Acl
     end
 
     dfs[:visited].merge!( { role.get_role_id => true })
-    get_role_registry().get_parents(role).each { |role_parent|
+    get_role_registry().get_parents(role).each { |key, role_parent|
       dfs[:stack].push(role_parent)
     }
 
@@ -473,11 +473,12 @@ class Racl::Acl
       visitor = @rules[:all_resources]
     else
       resource_id = resource.get_resource_id()
-      if (@rules[:by_resource_id][resource_id].nil?)
+      if @rules[:by_resource_id][resource_id].nil?
         if !create
           return nil
         end
-        @rules[:by_resource_id] = { resource_id => {} }
+        @rules[:by_resource_id] = {} if @rules[:by_resource_id].nil?
+        @rules[:by_resource_id].merge!({ resource_id => {} })
       end
       visitor = @rules[:by_resource_id][resource_id]
     end

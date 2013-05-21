@@ -317,10 +317,158 @@ describe Racl do
             .add_role(Racl::Role::Generic.new('staff'), 'guest')
             .add_resource(Racl::Resource::Generic.new('area1'))
             .add_resource(Racl::Resource::Generic.new('area2'))
+            .add_resource(Racl::Resource::Generic.new('area3'))
             .deny
             .allow('staff')
             .deny('staff', ['area1', 'area2'])
         @acl.is_allowed?('staff', 'area1').should be_false
+        @acl.is_allowed?('staff', 'area3').should be_true
+      end
+
+      it "should ensure that for a particular Role, a deny rule on a specific privilege is honored before an allow rule on the entire ACL" do
+        @acl.add_role(Racl::Role::Generic.new('guest'))
+            .add_role(Racl::Role::Generic.new('staff'), 'guest')
+            .deny
+            .allow('staff')
+            .deny('staff', nil, [:privilege1, :privilege2])
+        @acl.is_allowed?('staff', nil, :privilege1).should be_false
+      end
+
+      it "should remove basic rule"
+
+      it "should ensure that removal of a Role results in its rules being removed"
+
+      it "should ensure that removal of all Roles results in Role-specific rules being removed"
+
+      it "should ensure that removal of a Resource results in its rules being removed"
+
+      it "should ensure that removal of all Resources results in Resource-specific rules being removed"
+    end
+
+    context "CMS Example" do
+      it "should ensure that an example for a content management system is operable" do
+        # Add some roles to the Role registry
+        @acl.add_role(Racl::Role::Generic.new('guest'))
+            .add_role(Racl::Role::Generic.new('staff'), 'guest')
+            .add_role(Racl::Role::Generic.new('editor'), 'staff')
+            .add_role(Racl::Role::Generic.new('administrator'))
+
+        # Guest may only view content
+        @acl.allow('guest', nil, :view)
+        # Staff inherits privileges from guest, but also needs additional privileges
+        @acl.allow('staff', nil, [:edit, :submit, :revise])
+        # Editor inherits view, edit, submit and revise privileges, but also needs additional privileges
+        @acl.allow('editor', nil, [:publish, :archive, :delete])
+        # Administrator inherits nothing, but is allowed all privileges
+        @acl.allow('administrator')
+
+        # ACL checks based on above permission sets
+=begin        @acl.is_allowed?('guest', nil, :view).should be_true
+        @acl.is_allowed?('guest', nil, :edit).should be_false
+        @acl.is_allowed?('guest', nil, :submit).should be_false
+        @acl.is_allowed?('guest', nil, :revise).should be_false
+        @acl.is_allowed?('guest', nil, :publish).should be_false
+        @acl.is_allowed?('guest', nil, :archive).should be_false
+        @acl.is_allowed?('guest', nil, :delete).should be_false
+        @acl.is_allowed?('guest', nil, :unknown).should be_false
+        @acl.is_allowed?('guest').should be_false
+
+        @acl.is_allowed?('staff', nil, :view).should be_true
+        @acl.is_allowed?('staff', nil, :edit).should be_true
+        @acl.is_allowed?('staff', nil, :submit).should be_true
+        @acl.is_allowed?('staff', nil, :revise).should be_true
+        @acl.is_allowed?('staff', nil, :publish).should be_false
+        @acl.is_allowed?('staff', nil, :archive).should be_false
+        @acl.is_allowed?('staff', nil, :delete).should be_false
+        @acl.is_allowed?('staff', nil, :unknown).should be_false
+        @acl.is_allowed?('staff').should be_false
+
+        @acl.is_allowed?('editor', nil, :view).should be_true
+        @acl.is_allowed?('editor', nil, :edit).should be_true
+        @acl.is_allowed?('editor', nil, :submit).should be_true
+        @acl.is_allowed?('editor', nil, :revise).should be_true
+        @acl.is_allowed?('editor', nil, :publish).should be_true
+        @acl.is_allowed?('editor', nil, :archive).should be_true
+        @acl.is_allowed?('editor', nil, :delete).should be_true
+        @acl.is_allowed?('editor', nil, :unknown).should be_false
+        @acl.is_allowed?('editor').should be_false
+
+        @acl.is_allowed?('administrator', nil, :view).should be_true
+        @acl.is_allowed?('administrator', nil, :edit).should be_true
+        @acl.is_allowed?('administrator', nil, :submit).should be_true
+        @acl.is_allowed?('administrator', nil, :revise).should be_true
+        @acl.is_allowed?('administrator', nil, :publish).should be_true
+        @acl.is_allowed?('administrator', nil, :archive).should be_true
+        @acl.is_allowed?('administrator', nil, :delete).should be_true
+        @acl.is_allowed?('administrator', nil, :unknown).should be_true
+        @acl.is_allowed?('administrator').should be_true
+=end
+        # Some checks on specific areas, which inherit access controls from the root ACL node
+        @acl.add_resource(Racl::Resource::Generic.new('newsletter'))
+            .add_resource(Racl::Resource::Generic.new('pending'), 'newsletter')
+            .add_resource(Racl::Resource::Generic.new('gallery'))
+            .add_resource(Racl::Resource::Generic.new('profile'), 'gallery')
+            .add_resource(Racl::Resource::Generic.new('config'))
+            .add_resource(Racl::Resource::Generic.new('hosts'), 'config')
+=begin        @acl.is_allowed?('guest', 'pending', :view).should be_true
+        @acl.is_allowed?('staff', 'profile', :revise).should be_true
+        @acl.is_allowed?('staff', 'pending', :view).should be_true
+        @acl.is_allowed?('staff', 'pending', :edit).should be_true
+        @acl.is_allowed?('staff', 'pending', :publish).should be_false
+        @acl.is_allowed?('staff', 'pending').should be_false
+        @acl.is_allowed?('editor', 'hosts', :unknown).should be_false
+        @acl.is_allowed?('administrator', 'pending').should be_true
+=end
+        # Add a new group, marketing, which bases its permissions on staff
+        @acl.add_role(Racl::Role::Generic.new('marketing'), 'staff')
+
+        # Allow marketing to publish and archive newsletters
+        @acl.allow('marketing', 'newsletter', [:publish, :archive])
+
+        # Allow marketing to publish and archive latest news
+        @acl.add_resource(Racl::Resource::Generic.new('news'))
+            .add_resource(Racl::Resource::Generic.new('latest'), 'news')
+        puts "\r\n***\r\n#{@acl.rules}\r\n***\r\n"
+        @acl.allow('marketing', 'latest', [:publish, :archive])
+        puts "\r\n*2*\r\n#{@acl.rules}\r\n*2*\r\n"
+
+        # Deny staff (and marketing, by inheritance) rights to revise latest news
+        @acl.deny('staff', 'latest', 'revise')
+
+        # Deny everyone access to archive news announcements
+        @acl.add_resource(Racl::Resource::Generic.new('announcement'), 'news')
+        @acl.deny(nil, 'announcement', 'archive')
+=begin
+        # Access control checks for the above refined permission sets
+        @acl.is_allowed?('marketing', nil, :view).should be_true
+        @acl.is_allowed?('marketing', nil, :edit).should be_true
+        @acl.is_allowed?('marketing', nil, :submit).should be_true
+        @acl.is_allowed?('marketing', nil, :revise).should be_true
+        @acl.is_allowed?('marketing', nil, :publish).should be_false
+        @acl.is_allowed?('marketing', nil, :archive).should be_false
+        @acl.is_allowed?('marketing', nil, :delete).should be_false
+        @acl.is_allowed?('marketing', nil, :unknown).should be_false
+        @acl.is_allowed?('marketing').should be_false
+=end
+        @acl.is_allowed?('marketing', 'newsletter', :publish).should be_true
+        @acl.is_allowed?('staff', 'pending', :publish).should be_false
+        @acl.is_allowed?('marketing', 'pending', :publish).should be_true
+        @acl.is_allowed?('marketing', 'newsletter', :archive).should be_true
+        @acl.is_allowed?('marketing', 'newsletter', :delete).should be_false
+        @acl.is_allowed?('marketing', 'newsletter').should be_false
+
+        @acl.is_allowed?('marketing', 'latest', :publish).should be_true
+        @acl.is_allowed?('marketing', 'latest', :archive).should be_true
+        @acl.is_allowed?('marketing', 'latest', :delete).should be_false
+        @acl.is_allowed?('marketing', 'latest', :revise).should be_false
+        @acl.is_allowed?('marketing', 'latest').should be_false
+
+        @acl.is_allowed?('marketing', 'announcement', :archive).should be_false
+        @acl.is_allowed?('staff', 'announcement', :archive).should be_false
+        @acl.is_allowed?('administrator', 'announcement', :archive).should be_false
+
+        @acl.is_allowed?('staff', 'latest', :publish).should be_false
+        @acl.is_allowed?('editor', 'announcement', :archive).should be_false
       end
     end
   end
