@@ -3,7 +3,7 @@ class Racl::Acl
   @@TYPE_DENY = :type_deny
   @@OP_ADD = :op_add
   @@OP_REMOVE = :op_remove
-  attr_reader :rules
+
   def initialize
     @role_registry = nil
     @resources = {}
