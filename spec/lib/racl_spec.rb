@@ -363,7 +363,7 @@ describe Racl do
         @acl.allow('administrator')
 
         # ACL checks based on above permission sets
-=begin        @acl.is_allowed?('guest', nil, :view).should be_true
+        @acl.is_allowed?('guest', nil, :view).should be_true
         @acl.is_allowed?('guest', nil, :edit).should be_false
         @acl.is_allowed?('guest', nil, :submit).should be_false
         @acl.is_allowed?('guest', nil, :revise).should be_false
@@ -402,7 +402,7 @@ describe Racl do
         @acl.is_allowed?('administrator', nil, :delete).should be_true
         @acl.is_allowed?('administrator', nil, :unknown).should be_true
         @acl.is_allowed?('administrator').should be_true
-=end
+
         # Some checks on specific areas, which inherit access controls from the root ACL node
         @acl.add_resource(Racl::Resource::Generic.new('newsletter'))
             .add_resource(Racl::Resource::Generic.new('pending'), 'newsletter')
@@ -410,7 +410,7 @@ describe Racl do
             .add_resource(Racl::Resource::Generic.new('profile'), 'gallery')
             .add_resource(Racl::Resource::Generic.new('config'))
             .add_resource(Racl::Resource::Generic.new('hosts'), 'config')
-=begin        @acl.is_allowed?('guest', 'pending', :view).should be_true
+        @acl.is_allowed?('guest', 'pending', :view).should be_true
         @acl.is_allowed?('staff', 'profile', :revise).should be_true
         @acl.is_allowed?('staff', 'pending', :view).should be_true
         @acl.is_allowed?('staff', 'pending', :edit).should be_true
@@ -418,7 +418,7 @@ describe Racl do
         @acl.is_allowed?('staff', 'pending').should be_false
         @acl.is_allowed?('editor', 'hosts', :unknown).should be_false
         @acl.is_allowed?('administrator', 'pending').should be_true
-=end
+
         # Add a new group, marketing, which bases its permissions on staff
         @acl.add_role(Racl::Role::Generic.new('marketing'), 'staff')
 
@@ -428,17 +428,15 @@ describe Racl do
         # Allow marketing to publish and archive latest news
         @acl.add_resource(Racl::Resource::Generic.new('news'))
             .add_resource(Racl::Resource::Generic.new('latest'), 'news')
-        puts "\r\n***\r\n#{@acl.rules}\r\n***\r\n"
         @acl.allow('marketing', 'latest', [:publish, :archive])
-        puts "\r\n*2*\r\n#{@acl.rules}\r\n*2*\r\n"
 
         # Deny staff (and marketing, by inheritance) rights to revise latest news
-        @acl.deny('staff', 'latest', 'revise')
+        @acl.deny('staff', 'latest', :revise)
 
         # Deny everyone access to archive news announcements
         @acl.add_resource(Racl::Resource::Generic.new('announcement'), 'news')
-        @acl.deny(nil, 'announcement', 'archive')
-=begin
+        @acl.deny(nil, 'announcement', :archive)
+
         # Access control checks for the above refined permission sets
         @acl.is_allowed?('marketing', nil, :view).should be_true
         @acl.is_allowed?('marketing', nil, :edit).should be_true
@@ -449,7 +447,7 @@ describe Racl do
         @acl.is_allowed?('marketing', nil, :delete).should be_false
         @acl.is_allowed?('marketing', nil, :unknown).should be_false
         @acl.is_allowed?('marketing').should be_false
-=end
+
         @acl.is_allowed?('marketing', 'newsletter', :publish).should be_true
         @acl.is_allowed?('staff', 'pending', :publish).should be_false
         @acl.is_allowed?('marketing', 'pending', :publish).should be_true
