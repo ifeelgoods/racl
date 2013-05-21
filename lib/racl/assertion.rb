@@ -1,3 +1,5 @@
 class Racl::Assertion
-  require 'racl/assertion/generic'
+  def assert
+    raise "Need to extend #assert method."
+  end
 end

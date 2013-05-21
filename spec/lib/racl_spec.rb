@@ -1,4 +1,6 @@
 require 'spec_helper'
+require 'lib/mock_assertion'
+require 'lib/test_privilege_assertion'
 
 describe Racl do
   describe "Racl" do
@@ -115,6 +117,15 @@ describe Racl do
         role_guest2 = Racl::Role::Generic.new('guest')
         expect { role_registry.add(@role_guest).add(role_guest2) }.to raise_error Racl::Exception::InvalidArgumentException
       end
+
+      it "should get roles as an array" do
+        @acl.add_role(@role_guest)
+            .add_role(Racl::Role::Generic.new('staff'), @role_guest)
+            .add_role(Racl::Role::Generic.new('editor'), 'staff')
+            .add_role(Racl::Role::Generic.new('administrator'))
+
+        @acl.get_roles().should eq(['guest','staff','editor','administrator'])
+      end
     end
 
     context "Resources" do
@@ -195,7 +206,7 @@ describe Racl do
       end
 
       it "should ensure that the default rule obeys its assertion" do
-        @acl.deny(nil, nil, nil, Racl::Assertion::Generic.new(false))
+        @acl.deny(nil, nil, nil, MockAssertion.new(false))
         @acl.is_allowed?.should be_true
         @acl.is_allowed?(nil, nil, :some_privilege).should be_true
       end
@@ -236,9 +247,9 @@ describe Racl do
       end
 
       it "should ensure that assertions on privileges work properly" do
-        @acl.allow(nil, nil, :some_privilege, Racl::Assertion::Generic.new(true))
+        @acl.allow(nil, nil, :some_privilege, MockAssertion.new(true))
         @acl.is_allowed?(nil, nil, :some_privilege).should be_true
-        @acl.allow(nil, nil, :some_privilege, Racl::Assertion::Generic.new(false))
+        @acl.allow(nil, nil, :some_privilege, MockAssertion.new(false))
         @acl.is_allowed?(nil, nil, :some_privilege).should be_false
       end
 
@@ -296,9 +307,9 @@ describe Racl do
       it "should ensure that assertions on privileges work properly for a particular Role" do
         role_guest = Racl::Role::Generic.new('guest')
         @acl.add_role(role_guest)
-            .allow(role_guest, nil, :some_privilege, Racl::Assertion::Generic.new(true))
+            .allow(role_guest, nil, :some_privilege, MockAssertion.new(true))
         @acl.is_allowed?(role_guest, nil, :some_privilege).should be_true
-        @acl.allow(role_guest, nil, :some_privilege, Racl::Assertion::Generic.new(false))
+        @acl.allow(role_guest, nil, :some_privilege, MockAssertion.new(false))
         @acl.is_allowed?(role_guest, nil, :some_privilege).should be_false
       end
 
@@ -343,6 +354,22 @@ describe Racl do
       it "should ensure that removal of a Resource results in its rules being removed"
 
       it "should ensure that removal of all Resources results in Resource-specific rules being removed"
+
+      it "should ensure that the only_parents argument to #inherits_role? works" do
+        @acl.add_role(Racl::Role::Generic.new('grandparent'))
+            .add_role(Racl::Role::Generic.new('parent'), 'grandparent')
+            .add_role(Racl::Role::Generic.new('child'), 'parent')
+        @acl.inherits_role?('child', 'grandparent', true).should be_false
+      end
+
+      it "should test assertion" do 
+        assertion = TestPrivilegeAssertion.new
+        
+        @acl.add_role('role')
+            .add_resource('resource')
+            .allow('role', nil, nil, assertion)
+        @acl.is_allowed?('role', 'resource', :privilege).should be_true
+      end
     end
 
     context "CMS Example" do
