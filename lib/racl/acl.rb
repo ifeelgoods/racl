@@ -305,7 +305,7 @@ class Racl::Acl
 
         if (rules = get_rules(resource, nil)) != nil
           rules[:by_privilege_id].each { |privilege, rule|
-            if @@TYPE_DENY == (rule_type_on_privilege = get_rule_type(resource, nil, privilege))
+            if @@TYPE_DENY == (rule_type_one_privilege = get_rule_type(resource, nil, privilege))
               return false
             end
           }
